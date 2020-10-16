@@ -1,0 +1,61 @@
+from bs4 import BeautifulSoup as bs
+import requests
+from pprint import pprint
+import pandas as pd
+import re
+
+
+main_link = 'https://hh.ru/search/vacancy'
+vacancy = 'python'
+params = {'text': vacancy,
+          'search_field': 'name',
+          'page': ''}
+headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36'}
+
+response = requests.get(main_link, params=params, headers=headers)
+soup = bs(response.text, 'html.parser')
+
+vacancy_lists = soup.findAll('div', {'class': 'vacancy-serp-item'})
+
+vacancy_data = {}
+for vacancy1 in vacancy_lists:
+    vacancy_name = vacancy1.find('a').text
+    vacancy_data['name'] = vacancy_name
+    salary = vacancy1.find('div', {'class': 'vacancy-serp-item__sidebar'})
+
+    if not salary:
+        salary_min = None
+        salary_max = None
+        salary_currency = None
+    else:
+        salary = salary.getText()
+        salary = salary.replace(u'\xa0', u'')
+
+        salary = re.split(r'\s|-', salary)
+
+        x = 0
+        for i in salary:
+            if x > 0:
+                break
+            elif salary[0] == 'до':
+                salary_min = None
+                salary_max = int(salary[1])
+                break
+            elif salary[0] == 'от':
+                salary_min = int(salary[1])
+                salary_max = None
+                break
+            else:
+                salary_min = salary[0]
+                salary_max = salary[1]
+                x = x + 1
+
+        salary_currency = salary[2]
+
+    vacancy_data['salary_min'] = salary_min
+    vacancy_data['salary_max'] = salary_max
+    vacancy_data['salary_currency'] = salary_currency
+
+print(vacancy_data)
+
+print()

@@ -1,0 +1,83 @@
+from bs4 import BeautifulSoup as bs
+import requests
+from pprint import pprint
+from pymongo import MongoClient
+
+result = []
+
+start_link = 'https://hh.ru/search/vacancy'
+
+headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36'}
+
+for i in range(0, 2):
+    params = {
+        'st': 'searchVacancy',
+        'text': 'методист',
+        'area': '1',
+        'page': i}
+    response = requests.get(start_link, params=params, headers=headers)
+    soup = bs(response.text, 'html.parser')
+    vacancy_list = soup.find_all('div', {'class': ['vacancy-serp-item']})
+
+    for vacancy in vacancy_list:
+        vac_name = vacancy.find('a', {'class': ['bloko-link HH-LinkModifier']}).text
+        vac_salary = vacancy.find('span', {'data-qa': ['vacancy-serp__vacancy-compensation']})
+        vac_min_salary = None
+        vac_max_salary = None
+        if vac_salary:
+            if vac_salary.text.find("от") != -1:
+                vac_min_salary = vac_salary.text.split(' ')[1]
+                vac_min_salary = vac_min_salary.replace('\xa0', '')
+            if vac_salary.text.find("до") != -1:
+                vac_max_salary = vac_salary.text.split(' ')[1]
+                vac_max_salary = vac_max_salary.replace('\xa0', '')
+            if vac_salary.text.find('-') != -1:
+                vac_min_salary = vac_salary.text.split(' ')[0]
+                vac_max_salary = vac_salary.text.split(' ')[1]
+                vac_max_salary = vac_max_salary.replace('\xa0', '')
+                vac_min_salary = vac_min_salary.replace('\xa0', '')
+
+        vac_employer = vacancy.find('a', {'data-qa': ['vacancy-serp__vacancy-employer']})
+        vac_city = vacancy.find('span', {'class': ['vacancy-serp-item__meta-info']}).text
+        vac_link = vacancy.find('a', {'class': ['bloko-link HH-LinkModifier']})['href']
+        result.append({'name': vac_name,
+                       'min_salary': vac_min_salary,
+                       'max_salary': vac_max_salary,
+                       'employer': vac_employer.text if vac_employer else '',
+                       'link': vac_link,
+                       'city': vac_city})
+
+        pager = soup.find('div', {'data-qa': 'pager-block'}).text
+        pager = pager[-6::]
+
+        if pager == 'дальше':
+            continue
+        else:
+            break
+
+# pprint(result)
+# print(len(result))
+
+client = MongoClient('127.0.0.1', 27017)
+db = client['vacancys']
+database = db.vacancy
+#Добавляем вакансию, только если этой вакансии еще нет в монго.
+for item in result:
+    if database.find(item).count() >= 1:
+        pass
+    else:
+        database.insert_one(item)
+
+
+for item in database.find():
+    pprint(item)
+
+# поиск по минимальной зарплате
+# поиск по минимальной зарплате
+def salary_search(amount):
+    for item in database.find({'min_salary': {'$gt': amount}}):
+        pprint(item)
+
+
+salary_search('30000')

@@ -1,0 +1,110 @@
+from pprint import pprint
+from lxml import html
+import requests
+from pymongo import MongoClient
+
+news_1 = []
+header = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36'}
+
+link_lenta = 'https://lenta.ru'
+
+response = requests.get(link_lenta, headers=header)
+
+dom = html.fromstring(response.text)
+
+news_block = dom.xpath(".//a/time[@class = 'g-time']/..")
+
+for i in news_block:
+    data = {}
+    head = i.xpath("text()")
+    date = i.xpath("time[@class = 'g-time']/text()")
+    link = i.xpath("@href")
+    source = link_lenta
+
+    data['source'] = source
+    data['head'] = head[0].replace('\xa0', ' ')
+    data['link'] = link
+    data['date'] = date
+
+    news_1.append(data)
+
+pprint(news_1)
+
+news_2 = []
+link_yandex = 'https://yandex.ru/news/?utm_source=main_stripe_big'
+header = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36'}
+
+response = requests.get(link_yandex, headers=header)
+
+dom = html.fromstring(response.text)
+
+# news_block = dom.xpath("//div[contains(@class,'news-top-stories')]")
+news_block = dom.xpath("//div[@class='mg-grid__row mg-grid__row_gap_8 news-top-stories news-app__top']/div")
+for i in news_block:
+    data1 = {}
+
+    head = i.xpath(".//h2[@class ='news-card__title']/text()")
+    date = i.xpath(".//span[@class = 'mg-card-source__time']/text()")
+    link = i.xpath(".//a/@href")
+    source = i.xpath(".//a[@href]/text()")
+
+    data1['source'] = source
+
+    data1['head'] = head
+
+    data1['link'] = link
+
+    data1['date'] = date
+
+    news_2.append(data1)
+
+news_3 = []
+header = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36'}
+link_mail = 'https://news.mail.ru/'
+
+response = requests.get(link_mail, headers=header)
+
+dom = html.fromstring(response.text)
+
+news_block = dom.xpath("//td[@class='daynews__items']/div")
+
+for i in news_block:
+    data = {}
+    head = i.xpath(".//span[contains(@class,'photo__title')]/text()")
+    date = None
+    link = i.xpath(".//a/@href")
+    source = None
+
+    data['source'] = source
+    data['head'] = head[0].replace('\xa0', ' ')
+    data['link'] = link
+    data['date'] = date
+
+    news_3.append(data)
+
+pprint(news_3)
+
+client = MongoClient('127.0.0.1', 27017)
+db = client['news']
+database = db.item
+
+for item in news_1:
+    if database.count_documents(item) >= 1:
+        pass
+    else:
+        database.insert_one(item)
+
+for item in news_2:
+    if database.count_documents(item) >= 1:
+        pass
+    else:
+        database.insert_one(item)
+
+for item in news_3:
+    if database.count_documents(item) >= 1:
+        pass
+    else:
+        database.insert_one(item)

@@ -1,0 +1,36 @@
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.action_chains import ActionChains
+
+import time
+
+chrome_options = Options()
+chrome_options.add_argument('start-maximized')
+driver = webdriver.Chrome('../../../PycharmProjects/Python-pycharm/API/Lesson_5/chromedriver.exe', options=chrome_options)
+
+driver.get('https://mail.ru/')
+time.sleep(2)
+login = driver.find_element_by_id('mailbox:login-input')
+login.send_keys('study.ai_172@mail.ru')
+login.submit()
+time.sleep(2)
+passw = driver.find_element_by_id('mailbox:password-input')
+passw.send_keys('NextPassword172')
+passw.submit()
+time.sleep(2)
+
+try:
+    for i in range(5):
+        letter = driver.find_elements_by_xpath("//a[@class='llc js-tooltip-direction_letter-bottom js-letter-list-item llc_normal']")
+        actions = ActionChains(driver)
+        actions.move_to_element(letter[-1])
+        actions.perform()
+        time.sleep(2)
+except Exception as e:
+    print(e)
+
+links = driver.find_elements_by_partial_link_text("/inbox/0:")
+
+for i in links:
+    print(i)
